@@ -82,29 +82,29 @@ def imscatter(x, y, icons, ax=None):
     ax.autoscale()
     return artists
     
-def plot_bivariate_normal(mean,cov,figax=None,nsigma=1,lt = 'ko',fc = None,alpha=0.3):
-    fcolors =iter(['red','red','green','black'])
-    pcolors = iter(['bd','rd','gd','black'])
-    if figax is None:
-        fig,ax = plt.subplots()
-    else:
-        fig,ax = figax
     
-    lambda_, v = np.linalg.eig(cov)
-    lambda_ = np.sqrt(lambda_)*nsigma
-    # plot ellipses
-    #print np.rad2deg(np.arccos(v[0, 0]))
-    ell = Ellipse(xy=(mean[0], mean[1]),width=lambda_[0]*2, height=lambda_[1]*2,
-                  angle=np.rad2deg(np.arccos(v[0, 0])))
+def plot_bivariate_normal(mean, cov, figax=None, nsigma=1, lt='ko', fc=None, alpha=0.3):
+    fcolors = iter(['blue', 'red', 'green', 'black'])
+    pcolors = iter(['bd', 'rd', 'gd', 'black'])
+    if figax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig, ax = figax
+
+    vals, vecs = np.linalg.eigh(cov)
+    order = vals.argsort()[::-1]
+    vals = vals[order]
+    vecs = vecs[:,order]
+
+    theta = np.degrees(np.arctan2(*vecs[:,0][::-1]))
+    w, h = 2 * nsigma * np.sqrt(vals)
+    ell = Ellipse(xy=mean, width=w, height=h, angle=theta)
     if fc is None:
-        fc = fcolors.next()
+        fc = next(fcolors)
     ell.set_facecolor(fc)
     ell.set_alpha(alpha)
     pt = ax.add_artist(ell)
-    #ax.plot(mean[0],mean[1],lt,MarkerSize=10)
-    return fig,ax,pt
-    
-    
+    return fig, ax, pt
     
     
     
