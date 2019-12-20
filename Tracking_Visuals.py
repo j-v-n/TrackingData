@@ -107,7 +107,7 @@ def find_framenum_at_timestamp(frames,match,half,timestamp):
     framenum = np.argmax( timestamps>=timestamp ) + ihalf
     return framenum
 
-def plot_frame(frame,match,alpha=1.0,include_player_velocities=True,include_ball_velocities=True, figax=None):
+def plot_frame(frame,match,units=100.,alpha=1.0,include_player_velocities=True,include_ball_velocities=True, figax=None):
     # plots positions (and velocities) of players 
     if figax is None:
         fig,ax = plot_pitch(match)
@@ -116,26 +116,27 @@ def plot_frame(frame,match,alpha=1.0,include_player_velocities=True,include_ball
     team1 = np.zeros((14,4))
     team0 = np.zeros((14,4))
     for i,j in enumerate( frame.team1_jersey_nums_in_frame ):
-        team1[i,0] = frame.team1_players[j].pos_x
-        team1[i,1] = frame.team1_players[j].pos_y
+        team1[i,0] = frame.team1_players[j].pos_x*100/units
+        team1[i,1] = frame.team1_players[j].pos_y*100/units
         team1[i,2] = frame.team1_players[j].vx/2.
         team1[i,3] = frame.team1_players[j].vy/2.
     team1 = team1[:i+1,:]
     for i,j in enumerate( frame.team0_jersey_nums_in_frame ):
-        team0[i,0] = frame.team0_players[j].pos_x
-        team0[i,1] = frame.team0_players[j].pos_y
+        team0[i,0] = frame.team0_players[j].pos_x*100/units
+        team0[i,1] = frame.team0_players[j].pos_y*100/units
         team0[i,2] = frame.team0_players[j].vx/2. # Divide by 2 for aesthetic purposes only (otherwise quiver is too long)
         team0[i,3] = frame.team0_players[j].vy/2. # Divide by 2 for aesthetic purposes only (otherwise quiver is too long)
     team0 = team0[:i+1,:]
     pts1, = ax.plot( team1[:,0], team1[:,1], 'ro',linewidth=0,markeredgewidth=0,markersize=10,alpha=alpha)
     pts2, = ax.plot( team0[:,0], team0[:,1], 'bo',linewidth=0,markeredgewidth=0,markersize=10,alpha=alpha)
-    ax.quiver( team1[:,0], team1[:,1], team1[:,2], team1[:,3],color='r',width=0.002,headlength=5,headwidth=3,scale=60)
-    ax.quiver( team0[:,0], team0[:,1], team0[:,2], team0[:,3],color='b',width=0.002,headlength=5,headwidth=3,scale=60)
+    if include_player_velocities:
+        ax.quiver( team1[:,0], team1[:,1], team1[:,2], team1[:,3],color='r',width=0.002,headlength=5,headwidth=3,scale=60)
+        ax.quiver( team0[:,0], team0[:,1], team0[:,2], team0[:,3],color='b',width=0.002,headlength=5,headwidth=3,scale=60)
     if frame.ball:
-        ax.plot( frame.ball_pos_x, frame.ball_pos_y, marker='o',markerfacecolor='k',markeredgewidth=0,markersize=6*max(1,np.sqrt(frame.ball_pos_z/150.)), alpha=alpha)
+        ax.plot( frame.ball_pos_x*100/units, frame.ball_pos_y*100/units, marker='o',markerfacecolor='k',markeredgewidth=0,markersize=6*max(1,np.sqrt(frame.ball_pos_z/150.)), alpha=alpha)
         if include_ball_velocities:
-            x = np.array([0,frame.ball_vx*100]) + frame.ball_pos_x
-            y = np.array([0,frame.ball_vy*100]) + frame.ball_pos_y
+            x = np.array([0,frame.ball_vx*100]) + frame.ball_pos_x*100/units
+            y = np.array([0,frame.ball_vy*100]) + frame.ball_pos_y*100/units
             ax.plot( x, y, 'k', alpha=alpha)
     
     ax.text(-150,match.fPitchYSizeMeters*50+40,frame.min+':'+ frame.sec.zfill(2), fontsize=14  )
@@ -195,7 +196,7 @@ def plot_frames(frames,match,pause=0.0,include_player_velocities=True,include_ba
         if not points_on:
             points_on = True
         
-def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velocities=True,hcol='r',acol='b',team1_exclude=[],team0_exclude=[],include_hulls=False,speed_fact=1.0,description=None):
+def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velocities=True,hcol='r',acol='b',team1_exclude=[],team0_exclude=[],include_hulls=False,speed_fact=1.0,description=None,units=100.):
     # saves a movie of frames with filename 'fname' in directory 'fpath'
     FFMpegWriter = animation.writers['ffmpeg']
     metadata = dict(title='Tracking Data', artist='Matplotlib', comment='test clip!')
@@ -225,8 +226,8 @@ def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velociti
             c = 0
             for i,j in enumerate( frame.team1_jersey_nums_in_frame ):
                 if j not in team1_exclude:
-                    team1[c,0] = frame.team1_players[j].pos_x
-                    team1[c,1] = frame.team1_players[j].pos_y
+                    team1[c,0] = frame.team1_players[j].pos_x*100./units
+                    team1[c,1] = frame.team1_players[j].pos_y*100./units
                     team1[c,2] = frame.team1_players[j].vx/2.
                     team1[c,3] = frame.team1_players[j].vy/2.
                     c += 1
@@ -234,8 +235,8 @@ def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velociti
             c = 0
             for i,j in enumerate( frame.team0_jersey_nums_in_frame ):
                 if j not in team0_exclude:
-                    team0[c,0] = frame.team0_players[j].pos_x
-                    team0[c,1] = frame.team0_players[j].pos_y
+                    team0[c,0] = frame.team0_players[j].pos_x*100./units
+                    team0[c,1] = frame.team0_players[j].pos_y*100./units
                     team0[c,2] = frame.team0_players[j].vx/2.
                     team0[c,3] = frame.team0_players[j].vy/2.
                     c += 1
@@ -251,20 +252,22 @@ def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velociti
                 pts8, = ax.fill(hull1[:,0], hull1[:,1], hcol, alpha=0.3)
                 pts9, = ax.fill(hull0[:,0], hull0[:,1], acol, alpha=0.3)
             if frame.ball:
-                pts3, = ax.plot( frame.ball_pos_x, frame.ball_pos_y, marker='o',markerfacecolor='k',markeredgewidth=0,markersize=6*max(1,np.sqrt(frame.ball_pos_z/150.)))
-                if frame.ball_status!='Alive' and not in_play_flag_on:
-                    pts10 = ax.text(match.fPitchXSizeMeters*50-1500,match.fPitchYSizeMeters*50-250,'Play stopped', fontsize=14, color='r' )
-                    in_play_flag_on = True
-                elif frame.ball_status=='Alive' and in_play_flag_on:
-                    pts10.remove()
-                    in_play_flag_on = False
+                pts3, = ax.plot( frame.ball_pos_x*100./units, frame.ball_pos_y*100./units, marker='o',markerfacecolor='k',markeredgewidth=0,markersize=6*max(1,np.sqrt(frame.ball_pos_z/150.)))
+                # need to remove this next bit for metrica data  
+                if match.provider != 'Metrica':
+                    if frame.ball_status!='Alive' and not in_play_flag_on:
+                        pts10 = ax.text(match.fPitchXSizeMeters*50-1500,match.fPitchYSizeMeters*50-250,'Play stopped', fontsize=14, color='r' )
+                        in_play_flag_on = True
+                    elif frame.ball_status=='Alive' and in_play_flag_on:
+                        pts10.remove()
+                        in_play_flag_on = False     
             else:
                 pts3, = ax.plot( 0, 0, marker='x',markerfacecolor='k',markeredgewidth=0,markersize=6) 
             pts4 = ax.text(-150,match.fPitchYSizeMeters*50+40,str((frame.period-1)*45+int(frame.min))+':'+ frame.sec.zfill(2), fontsize=14 )
             if not points_on:
                 points_on = True
             writer.grab_frame()
-    plt.close('all')
+    plt.close()
             
             
 def plot_player_timeseries(frames,match,team,jerseynum):
@@ -296,4 +299,40 @@ def plot_player_timeseries(frames,match,team,jerseynum):
                 py[i] = None
                 sp[i] = None
     return timestamp,px,py,sp
+    
+def posession_map(frames,match,subsample=25):
+    length = match.fPitchXSizeMeters
+    width = match.fPitchYSizeMeters
+    grid = 30
+    xgrid = np.linspace(-length/2.,length/2.,grid)
+    ygrid = np.linspace( -width/2.,width/2., grid*width/length )
+    dx = xgrid[1]-xgrid[0]
+    dy = ygrid[1]-ygrid[0]
+    nx = len(xgrid)
+    ny = len(ygrid)
+    #ball_pos = np.array( [attacking_players[24].pos_x, attacking_players[24].pos_y] ) / 100  # convert to m
+    home = np.zeros( shape = (len(ygrid), len(xgrid)) )
+    away = np.zeros( shape = (len(ygrid), len(xgrid)) )
+    for i,frame in enumerate(frames):
+        flip = 1 if frame.period==1 else -1
+        if frame.ball_status == 'Alive':
+            #print i, frame.ball_pos_x/100., frame.ball_pos_y/100.
+            bx = int( ( flip*frame.ball_pos_x/100. + length/2.)/dx )
+            by = int( ( flip*frame.ball_pos_y/100. + width/2.)/dy )
+            if bx>=0 and bx<nx and by>=0 and by<ny:
+                if frame.ball_team == 'H':
+                    home[by,bx] += 1/25.
+                elif frame.ball_team == 'A':
+                    away[by,bx] += 1/25.
+    
+    vmax = np.max(home)*0.8
+    print "home", vmax
+    fig1,ax1 = plot_pitch(match)
+    ax1.imshow(np.flipud(home), extent=(np.amin(xgrid)*100, np.amax(xgrid)*100, np.amin(ygrid)*100, np.amax(ygrid)*100),cmap='Reds',interpolation='gaussian',vmin=0.,vmax=12)
+    vmax = np.max(away)*0.8    
+    print "away", vmax
+    fig2,ax2 = plot_pitch(match)
+    ax2.imshow(np.flipud(away), extent=(np.amin(xgrid)*100, np.amax(xgrid)*100, np.amin(ygrid)*100, np.amax(ygrid)*100),cmap='Reds',interpolation='gaussian',vmin=0.,vmax=12)
+    return fig1,ax1,fig2,ax2
+        
     
