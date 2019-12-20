@@ -51,7 +51,7 @@ for cf in corner_frames:
         pcolor = 'b.'
         direction_of_play = match.period_parity[frame.period]
     # iterate over attacking players and plot their positions 
-    for k in players.keys():
+    for k in players.keys(): # players are indexed by their jersey numbers
         # is player in penalty area, if so plot their position.
         if players[k].pos_x*direction_of_play > penalty_area_edge and abs(players[k].pos_y) < penalty_area_width/2.:
             ax.plot(players[k].pos_x*100,players[k].pos_y*100,pcolor,markersize=1)
