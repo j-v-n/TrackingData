@@ -11,7 +11,6 @@ import Tracking_Visuals as vis
 # IO - up date to your own filepaths
 DATADIR = "/Users/laurieshaw/Documents/Football/Data/TrackingData/Metrica/metrica_2018_full"
 PLOTDIR = '/Users/laurieshaw/Documents/Football/Data/TrackingData/Metrica/plots/'
-TRAJECTORY_DIR = "/Users/laurieshaw/Documents/Football/Data/TrackingData/Metrica/rgrids.pkl"
 gameid = 217
 
 # team names
