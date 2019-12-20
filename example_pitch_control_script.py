@@ -10,8 +10,7 @@ import Tracking_Visuals as vis
 import numpy as np
 import Pitch_Control as pc
 
-#fpath='/Path/To/Directory/of/Tracking/Data/' # path to directory of Tracab data
-fpath = "/Users/laurieshaw/Documents/Football/Data/TrackingData/Tracab/SuperLiga/All/"
+fpath='/Path/To/Directory/of/Tracking/Data/' # path to directory of Tracab data
 match_id = 984455 # example
    
 print match_id
@@ -20,6 +19,7 @@ fname = str(match_id)
 frames_tb, match_tb, team1_players, team0_players = tracab.read_tracab_match_data('DSL',fpath,fname,verbose=False)
 
 params = pc.default_model_params()
+params['lambda_def'] = 3.99 # reset this so it's the same as the defending team
 
 frame = frames_tb[7995] # plot at randome frame. need to start from at least the 5th frame as velocities are uninitialised until then
 ball_pos = np.array([frame.ball_pos_x,frame.ball_pos_y])/100.
@@ -41,9 +41,7 @@ elif frame.ball_team=='A':
                 
 # calculate attacking and defending team pitch control maps. PPCFtau shows how long a player from the attacking team would take to get to each point on the pitch. xgrid and ygrid indicate the pixel positions
 # setting ball_pos = None assumes that the ball would instantaneously arrive at any given point on the pitch, otherwise set it = to ball_pos calculated above
-PPCFa,PPCFd,PPCFtau,xgrid,ygrid = pc.generate_pitch_control_map(attacking_players, defending_players, frame, params, ball_pos=None, dgrid=None )
-
+PPCFa,PPCFd,PPCFtau,xgrid,ygrid = pc.generate_pitch_control_map(attacking_players, defending_players, frame, match_tb, params, ball_pos=None, dgrid=None, dT=0.01,tol=0.99 ) 
 
 fig,ax = vis.plot_frame(frame,match_tb,include_player_velocities=True,include_ball_velocities=False)
-ax.imshow(np.flipud(PPCFa), extent=(np.amin(xgrid)*100, np.amax(xgrid)*100, np.amin(ygrid)*100, np.amax(ygrid)*100),interpolation='None',vmin=0.2,vmax=1,cmap='spring',alpha=0.3)
-
+ax.imshow(np.flipud(PPCFa), extent=(np.amin(xgrid)*100, np.amax(xgrid)*100, np.amin(ygrid)*100, np.amax(ygrid)*100),interpolation='hanning',vmin=0.2,vmax=1,cmap='spring',alpha=0.75)
