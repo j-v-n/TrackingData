@@ -13,6 +13,7 @@ import numpy as np
 #import plotly.plotly as py
 #import plotly.tools as tls
 import matplotlib.pyplot as plt
+import OPTA_formations
 
 
 def read_OPTA_f24(fpath,fname,match_opta):
@@ -38,11 +39,12 @@ def read_OPTA_f7(fpath,fname):
     soup = BeautifulSoup(data, 'xml') # deal with xml markup (BS might be overkill here)
     competition = soup.find('Competition')
     matchdata = soup.find('MatchData')
-    teamdata = soup.find_all('Team')
+    playerdata = soup.find_all('Team')
     venue = soup.find_all('Venue')
     match = OPTAmatch(matchdata)
-    match.get_teams(teamdata)
+    match.get_teams(playerdata,matchdata)
     match.fpath = fpath + fname
+    match.id = int(fname)
     return match
     
 def add_tracab_attributes(match_OPTA,match_tb):
@@ -88,10 +90,10 @@ class OPTAmatch(object):
         day = int(self.datestring[6:8])
         self.date = dt.datetime(year=year,month=month,day=day)
     
-    def get_teams(self,teamdata):
-        assert len(teamdata)==2
-        self.hometeam = OPTAteam(teamdata[0],'H')
-        self.awayteam = OPTAteam(teamdata[1],'A')
+    def get_teams(self,playerdata,matchdata):
+        assert len(playerdata)==2
+        self.hometeam = OPTAteam(playerdata[0],matchdata,'H')
+        self.awayteam = OPTAteam(playerdata[1],matchdata,'A')
         self.team_map = {}
         self.team_map[self.hometeam.team_id] = self.hometeam
         self.team_map[self.awayteam.team_id] = self.awayteam
@@ -115,23 +117,39 @@ class OPTAmatch(object):
     
 class OPTAteam(object):
     # team class to hold events for each team in a match
-    def __init__(self,team,homeaway):
+    def __init__(self,team,matchdata,homeaway):
         self.raw = team
         self.homeaway = homeaway
+        ha = lambda x: 'Home' if x=='H' else 'Away'
+        squad = matchdata.find('TeamData',attrs={'Side':ha(homeaway)})
         self.country = team.find('Country').text
         self.team_id = int( team['uID'][1:] )
         self.teamname = utils.remove_accents(  team.find('Name').text )
         self.players = []
-        self.get_players()
+        formation_map = OPTA_formations.opta_formation_map()[squad['Formation']]
+        self.get_players(squad,formation_map)
         
-    def get_players(self):
+    def get_players(self,squad,formation_map):
         playerdata =  self.raw.find_all('Player')
+        # basic player info
         for player in playerdata:
             self.players.append( OPTAplayer(player) )
+        # where did those players play? deal with jerseynumbers and formation
+        squad = squad.findAll('MatchPlayer')
+        lineup = {}
+        for squadmember in squad:
+            pid = int( squadmember['PlayerRef'][1:] ) 
+            formation_place = formation_map[int( squadmember['Formation_Place'] )]
+            jerseynum = int( squadmember['ShirtNumber'] )
+            status = squadmember['Status']
+            lineup[ pid ] = (jerseynum,formation_place,status)
         # now construct player map for easy identification of players
         self.player_map = {}
         for p in self.players:
             self.player_map[p.id] = p
+            p.jerseynum = lineup[ p.id ][0]
+            p.formation_place = lineup[ p.id ][1]
+            p.status = lineup[ p.id ][2]
             
     def get_team_events(self,events,opp_id,match_OPTA):
         self.events = []
@@ -271,12 +289,12 @@ class OPTAevent(object):
         self.distance = np.sqrt(self.xgoal**2+self.ygoal**2) # distance to center of goal in m
         self.angle_to_centre = np.arccos(self.xgoal/self.distance)*180./np.pi
         # x distance to posts (nearest,furthest)
-        x_to_posts = (np.abs(np.abs(self.ygoal)-posts),np.abs(self.ygoal)+posts)
+        x_to_posts = (np.abs(np.abs(self.ygoal)-posts/2.),np.abs(self.ygoal)+posts/2.)
         # some angles to posts
         alpha = np.arctan(x_to_posts[0]/self.xgoal)
         phi = np.arctan(x_to_posts[1]/self.xgoal)
         # opening angle to goal
-        if np.abs(self.ygoal)>posts:
+        if np.abs(self.ygoal)>posts/2.:
             self.angle_opening = (phi - alpha)*180/np.pi
         else:
             self.angle_opening = (phi + alpha)*180/np.pi 
@@ -288,7 +306,7 @@ class OPTAevent(object):
         self.individual_play = 215 in self.qual_id_list
         self.big_chance = 214 in self.qual_id_list
         self.direct_free_kick = 26 in self.qual_id_list
-        self.fast_break = 22 in self.qual_id_list
+        self.fast_break = 23 in self.qual_id_list
         self.from_set_play = 24 in self.qual_id_list
         self.from_corner = 25 in self.qual_id_list
         self.direct_free_kick = 26 in self.qual_id_list
@@ -422,7 +440,7 @@ class OPTAevent(object):
             
     def __repr__(self):
         if self.is_shot:
-            s = "%s, %1.2f, %s, xG: %1.2f" % (self.team_name,self.time,self.description,self.expG_caley)
+            s = "%s, %s, %1.2f, %s, xG: %1.2f" % (self.team_name,self.player_name, self.time,self.description,self.expG_caley2)
         else:   
             s = "%s, %1.2f, %s" % (self.team_name,self.time,self.description)
         return s

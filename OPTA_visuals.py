@@ -8,8 +8,6 @@ Created on Tue Aug 13 17:08:14 2019
 import OPTA as opta
 import numpy as np
 import matplotlib.pyplot as plt
-import plotly.plotly as py
-import plotly.tools as tls
 import Tracking_Visuals as vis
 
 def get_all_matches():
@@ -58,11 +56,14 @@ def xG_calibration_plots(matches, caley_type = [1,2,3,4,5,6], bins = np.linspace
     ax.plot([0,1],[0,1],'k--')
     
     
-def plot_all_shots(match_OPTA,plotly=False):
-    symbols = lambda x: 'd' if x=='Goal' else 'o'
-    fig,ax = vis.plot_pitch(match_OPTA)
-    homeshots = [e for e in match_OPTA.hometeam.events if e.is_shot]
-    awayshots = [e for e in match_OPTA.awayteam.events if e.is_shot]
+def plot_all_shots(match_OPTA,plotly=False,twindow=(0,200),figax=None,pt='o'):
+    symbols = lambda x: 'd' if x=='Goal' else pt
+    if figax is None:
+        fig,ax = vis.plot_pitch(match_OPTA)
+    else:
+        fig,ax = figax
+    homeshots = [e for e in match_OPTA.hometeam.events if e.is_shot and e.time>=twindow[0] and e.time<twindow[1]]
+    awayshots = [e for e in match_OPTA.awayteam.events if e.is_shot and e.time>=twindow[0] and e.time<twindow[1]]
     xfact = match_OPTA.fPitchXSizeMeters*100
     yfact = match_OPTA.fPitchYSizeMeters*100
     descriptors = {}
@@ -186,4 +187,37 @@ def Generate_Tracab_Chance_Videos(match_OPTA, match_tb, frames_tb):
         tend = (shot.period_id, min(match_end,shot.time-45*(shot.period_id-1) + t_end_buf))
         frames_in_segment = vis.get_frames_between_timestamps(frames_tb,match_tb,tstart,tend)
         vis.save_match_clip(frames_in_segment,match_tb,fpath=match_OPTA.fpath+'/chances/',fname=shot.shot_id,include_player_velocities=False,description=shot.shot_descriptor)
+   
+def plot_all_passes(events,match_tb,window=(0,200),figax = None, flip=1.0,color='blue',alpha=0.3):
+    if figax is None:
+        fig,ax = vis.plot_pitch(match_tb)
+    else:
+        fig,ax = figax
+    xfact = match_tb.fPitchXSizeMeters*100*flip
+    yfact = match_tb.fPitchYSizeMeters*100*flip
+    all_pts = []
+    for e in events:
+        if e.type_id in [1,2] and e.time>=window[0] and e.time<window[1] and 6 not in e.qual_id_list: # pass event
+            pass_end_x = e.qualifiers[e.qual_id_list.index(140)].value/100. - 0.5
+            pass_end_y = e.qualifiers[e.qual_id_list.index(141)].value/100. - 0.5
+            x = np.array([e.x,pass_end_x])*xfact
+            y = np.array([e.y,pass_end_y])*yfact
+            #ax.plot(x,y,'r',alpha=0.6)
+            p = ax.annotate('', xy=(x[1], y[1]), xytext=(x[0], y[0]),arrowprops=dict(arrowstyle="-|>",linewidth=1,color=color, alpha=alpha) )
+            all_pts.append(p)
+    return fig,ax,all_pts
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
    
