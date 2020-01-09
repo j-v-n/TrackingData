@@ -64,7 +64,7 @@ def calc_trajectory_grid(vmax = 40.0, dt = 0.01, maxiter=10000):
         for j in range( Nth ):
             r,v,t = calc_ball_trajectory( v_init[i], theta_init[j], alpha, dt=dt )
             if r[-1,0]>rmax:
-                print "trajectory distance out of bounds"
+                print( "trajectory distance out of bounds" )
                 assert False
             rkey = np.floor( r[-1,0]/dr ) * dr
             rgrid[rkey].append( (t[-1],v_init[i], theta_init[j]) )
@@ -263,7 +263,6 @@ def calculate_pitch_control(target_position, attacking_players, defending_player
         tau_min_att = min((tau_min_att, tmin))
         attacking_players[p].PPCF = 0.0
     for p in dkeys:
-        #print defending_players[p].r_init,target_position,defending_players[p].v_init
         tmin = piecewise_intercept_time2(defending_players[p].r_init,target_position,defending_players[p].v_init,amax=amax,vmax=vmax,tmin_ball=tmin_ball)
         defending_players[p].exp_tau = tmin
         tau_min_def = min((tau_min_def, tmin))
@@ -357,7 +356,7 @@ def PPCF_match_clip_pass(side,frames,match,fpath,subsample=2,fname='PC_test'):
     frames = frames[::subsample]
     with writer.saving(fig, fname, 100):
         for frame in frames:
-            print frame.timestamp
+            print( frame.timestamp )
             if points_on:
                 pts1.remove()
                 pts2.remove()
