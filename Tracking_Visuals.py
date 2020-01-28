@@ -196,15 +196,19 @@ def plot_frames(frames,match,pause=0.0,include_player_velocities=True,include_ba
         if not points_on:
             points_on = True
         
-def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velocities=True,hcol='r',acol='b',team1_exclude=[],team0_exclude=[],include_hulls=False,speed_fact=1.0,description=None,units=100.):
+def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velocities=True,hcol='r',acol='b',team1_exclude=[],team0_exclude=[],include_hulls=False,pos_status=False,pos_phase=False,speed_fact=1.0,description=None,units=100.):
     # saves a movie of frames with filename 'fname' in directory 'fpath'
     FFMpegWriter = animation.writers['ffmpeg']
     metadata = dict(title='Tracking Data', artist='Matplotlib', comment='test clip!')
     writer = FFMpegWriter(fps=match.iFrameRateFps*speed_fact, metadata=metadata)
     fig,ax = plot_pitch(match)
     fig.suptitle(fname,fontsize=16,y=0.95)
+    #fig.patch.set_visible(False)
+    ax.axis('off')
     if description is not None:
         ax.text( -1*match.fPitchXSizeMeters/2. *100, -1*(match.fPitchYSizeMeters/2.+10)*100, description, fontsize=12, alpha=0.7)
+    if pos_status:
+        ax.text((match.fPitchXSizeMeters*0.2)*100,(match.fPitchYSizeMeters*0.52)*100,'Ball Status: ', fontsize=14, color='k' )
     points_on = False
     in_play_flag_on = False
     team1 = np.zeros((14,4))
@@ -217,6 +221,10 @@ def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velociti
                 pts2.remove()
                 pts3.remove()
                 pts4.remove()
+                if pos_status:
+                    pts3b.remove()
+                if pos_phase:
+                    pts3c.remove()
                 if include_player_velocities:
                     pts6.remove()
                     pts7.remove()
@@ -254,16 +262,20 @@ def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velociti
             if frame.ball:
                 pts3, = ax.plot( frame.ball_pos_x*100./units, frame.ball_pos_y*100./units, marker='o',markerfacecolor='k',markeredgewidth=0,markersize=6*max(1,np.sqrt(frame.ball_pos_z/150.)))
                 # need to remove this next bit for metrica data  
-                if match.provider != 'Metrica':
-                    if frame.ball_status!='Alive' and not in_play_flag_on:
-                        pts10 = ax.text(match.fPitchXSizeMeters*50-1500,match.fPitchYSizeMeters*50-250,'Play stopped', fontsize=14, color='r' )
-                        in_play_flag_on = True
-                    elif frame.ball_status=='Alive' and in_play_flag_on:
-                        pts10.remove()
-                        in_play_flag_on = False     
             else:
-                pts3, = ax.plot( 0, 0, marker='x',markerfacecolor='k',markeredgewidth=0,markersize=6) 
-            pts4 = ax.text(-150,match.fPitchYSizeMeters*50+40,str((frame.period-1)*45+int(frame.min))+':'+ frame.sec.zfill(2), fontsize=14 )
+                pts3, = ax.plot( 0, 0, marker='x',markerfacecolor='k',markeredgewidth=0,markersize=6)  
+            if pos_status:
+                if frame.ball_status!='Alive' and not in_play_flag_on:
+                    pts10 = ax.text((match.fPitchXSizeMeters*0.35)*100,(match.fPitchYSizeMeters*0.52)*100,'(play stopped)', fontsize=14, color='k' )
+                    in_play_flag_on = True
+                elif frame.ball_status=='Alive' and in_play_flag_on:
+                    pts10.remove()
+                    in_play_flag_on = False    
+                ball_team_col = hcol if frame.ball_team=='H' else acol if frame.ball_team=='A' else 'k'
+                pts3b = ax.text((match.fPitchXSizeMeters*0.33)*100,(match.fPitchYSizeMeters*0.52)*100,frame.ball_team, fontsize=14, color=ball_team_col )
+            if pos_phase:
+                pts3c = ax.text((match.fPitchXSizeMeters*0.33)*100,(match.fPitchYSizeMeters*0.52)*100,frame.pos_phase + ' / ' + frame.def_phase, fontsize=14, color='k' )
+            pts4 = ax.text(-150,(match.fPitchYSizeMeters*0.52)*100,str((frame.period-1)*45+int(frame.min))+':'+ frame.sec.zfill(2), fontsize=14 )
             if not points_on:
                 points_on = True
             writer.grab_frame()
@@ -326,11 +338,11 @@ def posession_map(frames,match,subsample=25):
                     away[by,bx] += 1/25.
     
     vmax = np.max(home)*0.8
-    print "home", vmax
+    print("home", vmax)
     fig1,ax1 = plot_pitch(match)
     ax1.imshow(np.flipud(home), extent=(np.amin(xgrid)*100, np.amax(xgrid)*100, np.amin(ygrid)*100, np.amax(ygrid)*100),cmap='Reds',interpolation='gaussian',vmin=0.,vmax=12)
     vmax = np.max(away)*0.8    
-    print "away", vmax
+    print("away", vmax)
     fig2,ax2 = plot_pitch(match)
     ax2.imshow(np.flipud(away), extent=(np.amin(xgrid)*100, np.amax(xgrid)*100, np.amin(ygrid)*100, np.amax(ygrid)*100),cmap='Reds',interpolation='gaussian',vmin=0.,vmax=12)
     return fig1,ax1,fig2,ax2

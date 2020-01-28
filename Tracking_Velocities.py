@@ -11,7 +11,7 @@ import numpy as np
 import scipy.signal as signal
 import scipy.stats as stats
 from scipy.signal import butter, lfilter, freqz
-import cPickle as pickle
+import pickle as pickle
 
 def smooth_ball_position(frames,match,_filter='Savitzky-Golay',window=5,polyorder=3):
     # For smoothing ball positions. Not used.
@@ -22,7 +22,7 @@ def smooth_ball_position(frames,match,_filter='Savitzky-Golay',window=5,polyorde
         r = np.nan*np.zeros((nframes,3),dtype=float)
         mask = []
         count = 0
-        print istart, iend
+        print(istart, iend)
         for frame in frames[istart:iend+1]:
             frame.ball_pos_x_smooth = np.nan
             frame.ball_pos_y_smooth = np.nan
@@ -44,7 +44,7 @@ def smooth_ball_position(frames,match,_filter='Savitzky-Golay',window=5,polyorde
     
 
 
-def estimate_ball_velocities(frames,match,_filter='Savitzky-Golay',window=5,polyorder=3,maxspeed=40):
+def estimate_ball_velocities(frames,match,_filter='Savitzky-Golay',window=5,polyorder=3,maxspeed=40,units=100.):
     # Apply filter to ball displacement between frames to get a smooth estimate of velocity
     x = []
     xraw = []
@@ -56,14 +56,14 @@ def estimate_ball_velocities(frames,match,_filter='Savitzky-Golay',window=5,poly
         dt = np.nan*np.zeros(nframes,dtype=float)
         mask = []
         count = 0
-        print istart, iend
+        print(istart, iend)
         for frame in frames[istart:iend+1]:
             frame.ball_speed_filter3 = np.nan # in 3d
             frame.ball_speed_filter2 = np.nan # in the x-y plane only
             # The ball isn't necessarily in every frame, so figure out which frames it is in
             if frame.ball:
                 mask.append(count)
-                dr[count,:] = np.array( [frame.ball_pos_x,frame.ball_pos_y,frame.ball_pos_z] )/100. # to m
+                dr[count,:] = np.array( [frame.ball_pos_x,frame.ball_pos_y,frame.ball_pos_z] )/units # to m
                 dt[count] = frame.timestamp*60 # to seconds
                 count += 1
         dr = np.diff(dr,axis=0)
@@ -98,17 +98,15 @@ def estimate_ball_velocities(frames,match,_filter='Savitzky-Golay',window=5,poly
     dr_raw = np.vstack(tuple(xraw))
     return frames, dr, dt, dr_raw
 
-def estimate_player_velocities(team1_players, team0_players, match, _filter='Savitzky-Golay', window=7, polyorder=1, maxspeed = 14):
-    # Frame of interest is in the center of the window
-    # estimated velocities for players in team1
-    # TODO: add accelerations too
+def estimate_player_velocities(team1_players, team0_players, match, _filter='Savitzky-Golay', window=7, polyorder=1, maxspeed = 14, units=100.):
+    # estimate velocities for players in team1
     for p in team1_players.keys(): # cycle through players individually
         nframes = len( team1_players[p].frame_targets )
-        dr = np.zeros((nframes,2),dtype=float)
+        dr = np.zeros((nframes,4),dtype=float)
         dt = np.zeros(nframes,dtype=float)
         for i,frame in enumerate( team1_players[p].frame_targets ):
-            dr[i,:] = np.array( [frame.pos_x,frame.pos_y] )/100. # to m
-            dt[i] = team1_players[p].frame_timestamps[i]*60 # to seconds # FIX THIS! Add time stamps to tracab_target?
+            dr[i,:] = np.array( [frame.pos_x,frame.pos_y,0.,0.] )/units # to m. last two entries are for accel
+            dt[i] = team1_players[p].frame_timestamps[i]*60 # to seconds 
             frame.vx = np.nan
             frame.vy = np.nan
             frame.speed_filter = np.nan
@@ -116,24 +114,29 @@ def estimate_player_velocities(team1_players, team0_players, match, _filter='Sav
         dt = np.diff(dt)
         for i in [0,1]:
             dr[:,i] = dr[:,i]/dt
-        # remove anamolously high ball velocities
-        dr[np.abs(dr)>maxspeed]=0.0 # perhaps should be nan, but this would affect surrounding frames
+        # remove anamolously high  velocities
+        dr[np.abs(dr)>maxspeed]=0. # perhaps should be nan, but this would affect surrounding frames
         # Apply filters
         dr[:,0] = signal.savgol_filter(dr[:,0],window_length=window,polyorder=polyorder)
         dr[:,1] = signal.savgol_filter(dr[:,1],window_length=window,polyorder=polyorder)
+        dr[:,2] = signal.savgol_filter(dr[:,0],window_length=window,polyorder=polyorder,deriv=1)/dt
+        dr[:,3] = signal.savgol_filter(dr[:,1],window_length=window,polyorder=polyorder,deriv=1)/dt
         # Put velocity information back into frames
         for i,frame in enumerate( team1_players[p].frame_targets[1:] ):
             frame.vx = dr[i,0]
             frame.vy = dr[i,1]
+            frame.ax = dr[i,2]
+            frame.ay = dr[i,3]
             frame.speed_filter = np.sqrt( frame.vx**2 + frame.vy**2 )
-    # estimated velocities for players in team0
+            frame.accel_filter = np.sqrt( frame.ax**2 + frame.ay**2 )
+    # estimate velocities for players in team0
     for p in team0_players.keys():
         nframes = len( team0_players[p].frame_targets )
-        dr = np.zeros((nframes,2),dtype=float)
+        dr = np.zeros((nframes,4),dtype=float)
         dt = np.zeros(nframes,dtype=float)
         for i,frame in enumerate( team0_players[p].frame_targets ):
-            dr[i,:] = np.array( [frame.pos_x,frame.pos_y] )/100. # to m
-            dt[i] = team0_players[p].frame_timestamps[i]*60 # to seconds # FIX THIS! Add time stamps to tracab_target?
+            dr[i,:] = np.array( [frame.pos_x,frame.pos_y,0.,0.] )/units # to m. last two entries are for accel
+            dt[i] = team0_players[p].frame_timestamps[i]*60 # to seconds 
             frame.vx = np.nan
             frame.vy = np.nan
             frame.speed_filter = np.nan
@@ -141,13 +144,18 @@ def estimate_player_velocities(team1_players, team0_players, match, _filter='Sav
         dt = np.diff(dt)
         for i in [0,1]:
             dr[:,i] = dr[:,i]/dt
-        dr[np.abs(dr)>maxspeed]=0.0 # perhaps should be nan, but this would affect surrounding frames
+        dr[np.abs(dr)>maxspeed]=0. # perhaps should be nan, but this would affect surrounding frames
         dr[:,0] = signal.savgol_filter(dr[:,0],window_length=window,polyorder=polyorder)
         dr[:,1] = signal.savgol_filter(dr[:,1],window_length=window,polyorder=polyorder)
+        dr[:,2] = signal.savgol_filter(dr[:,0],window_length=window,polyorder=polyorder,deriv=1)/dt
+        dr[:,3] = signal.savgol_filter(dr[:,1],window_length=window,polyorder=polyorder,deriv=1)/dt
         for i,frame in enumerate( team0_players[p].frame_targets[1:] ):
             frame.vx = dr[i,0]
             frame.vy = dr[i,1]
+            frame.ax = dr[i,2]
+            frame.ay = dr[i,3]
             frame.speed_filter = np.sqrt( frame.vx**2 + frame.vy**2 )
+            frame.accel_filter = np.sqrt( frame.ax**2 + frame.ay**2 )
             
             
 def estimate_com_frames(frames_tb,match_tb,team1exclude,team0exclude):
@@ -160,7 +168,7 @@ def estimate_com_frames(frames_tb,match_tb,team1exclude,team0exclude):
         frame.team1_vy = 0.
         nv = 0
         pids = players.keys()
-        pids = [pid for pid in pids if pids not in team1exclude]
+        pids = [pid for pid in pids if pid not in team1exclude]
         for pids in pids:
             frame.team1_x += players[pids].pos_x
             frame.team1_y += players[pids].pos_y
@@ -185,7 +193,7 @@ def estimate_com_frames(frames_tb,match_tb,team1exclude,team0exclude):
         frame.team0_vy = 0.
         nv = 0
         pids = players.keys()
-        pids = [pid for pid in pids if pids not in team0exclude]
+        pids = [pid for pid in pids if pid not in team0exclude]
         for pids in pids:
             frame.team0_x += players[pids].pos_x
             frame.team0_y += players[pids].pos_y
