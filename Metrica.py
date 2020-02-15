@@ -396,7 +396,7 @@ class metrica_frame(object):
         jersey_num =jersey_num
         # move to native co-ordinate system (in cms, with origin at the center circle)
         pos_x = ( pos_x-0.5 ) * match.fPitchXSizeMeters
-        pos_y = ( pos_y-0.5 ) * match.fPitchYSizeMeters
+        pos_y = ( pos_y-0.5 ) * match.fPitchYSizeMeters*-1 # flip y-axis
         speed = np.nan
         if team_id==1:
             self.team1_players[jersey_num] = metrica_target(team_id,jersey_num,pos_x,pos_y,speed) 
@@ -409,7 +409,7 @@ class metrica_frame(object):
     def add_frame_ball(self,ball_x,ball_y,match):
         self.ball = True
         self.ball_pos_x = ( ball_x-0.5 ) * match.fPitchXSizeMeters
-        self.ball_pos_y = ( ball_y-0.5 ) * match.fPitchYSizeMeters
+        self.ball_pos_y = ( ball_y-0.5 ) * match.fPitchYSizeMeters*-1 # flip y-axis
         self.ball_pos_z = 0.0 # metrica doesn't have z-axis for ball, so put on ground in all frames
         
         
@@ -452,6 +452,7 @@ class metrica_possession(object):
     # a single period of continuous posession for a team
     def __init__(self,frames,frame_start_num,team,start_event,end_event):
         self.team = team
+        self.teamname = start_event['Team']
         self.start_event = start_event
         self.end_event = end_event
         self.period = frames[0].period
@@ -465,6 +466,8 @@ class metrica_possession(object):
         self.pos_end_fnum = frame_start_num+self.pos_Nframes-1
         self.pos_start_type = start_event['Type']
         self.pos_end_type = 'Unknown' if end_event is None else end_event['Type']
+        self.pos_end_subtype = 'Unknown' if end_event is None else end_event['Subtype']
+        self.goal = 'GOAL' in str(self.pos_end_subtype).split('-')
         if self.pos_end_type=='SHOT' and 'OUT' in str(end_event['Subtype']):
             self.pos_end_type = 'BALL OUT'
         self.prev_pos_type = None
