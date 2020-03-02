@@ -47,6 +47,20 @@ def get_metrica_frames(DATA_DIR,tracking_files):
     return dfs[0].drop(columns=['ball_x', 'ball_y']).merge(
             dfs[1], on=('Period', 'Frame', 'Time [s]'))
 
+def get_player_name_to_jersey_map(DATA_DIR,tracking_files):
+    # read metrica tracking data into a dataframe
+    playername_jerseynum_map = {}
+    for tracking_file in tracking_files:
+        csvfile =  open('{}/{}'.format(DATA_DIR, tracking_file), 'r')
+        reader = csv.reader(csvfile)    
+        teamnamefull = next(reader)[3]
+        # construct player names to jersey map
+        jerseys = [x for x in next(reader) if x != '']
+        columns = next(reader)
+        playernames = [x for x in columns[3:] if x not in ['','Ball']]
+        playername_jerseynum_map[teamnamefull] = {n:c for n,c in zip(playernames,jerseys)}
+    return playername_jerseynum_map
+
 def get_filenames(DATA_DIR,game_id):
     # get tracking data and event data filenames for a given match
     all_files = listdir(DATA_DIR)
@@ -65,6 +79,8 @@ def read_metrica_match_data(DATA_DIR, game_id, during_match_only=True, verbose=T
     tracking_files, event_file = get_filenames(DATA_DIR,game_id)
     # get basic match data
     match = metrica_match(DATA_DIR,event_file)
+    # get player name to jersey number map for each team
+    match.playername_jerseynum_map = get_player_name_to_jersey_map(DATA_DIR,tracking_files)
     #  read in tracking data
     df = get_metrica_frames(DATA_DIR,tracking_files)
     if verbose:
