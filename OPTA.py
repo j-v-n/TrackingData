@@ -14,6 +14,7 @@ import numpy as np
 #import plotly.tools as tls
 import matplotlib.pyplot as plt
 import OPTA_formations
+import pandas as pd
 
 
 def read_OPTA_f24(fpath,fname,match_opta):
@@ -56,19 +57,26 @@ def add_tracab_attributes(match_OPTA,match_tb):
 def get_OPTA_id_descriptions():
     # reads in descriptions of OPTAs and type and qualifier descriptors
     typeids_path = "/Users/laurieshaw/Documents/Football/Data/OPTA/TypeID_Descriptions.csv"
+    qualids_path = "/Users/laurieshaw/Documents/Football/Data/OPTA/QualID_Descriptions.csv"
+    typeids = pd.read_csv(typeids_path,encoding='latin',index_col=0)['Short'].to_dict()
+    qualids = pd.read_csv(qualids_path,encoding='latin',index_col=0)['Short'].to_dict()
+    
+    '''
     typeids = {}
-    with open(typeids_path, 'rU') as csvfile:
-        refreader = csv.reader(csvfile, dialect = 'excel')
-        refreader.next() # get rid of header
+    with open(typeids_path, 'r',newline=None) as csvfile:
+        refreader = csv.reader(csvfile,encoding='latin')
+        next(refreader) # get rid of header
         for row in refreader: # first row is header
             typeids[int(row[0])] = row[1]
     qualids_path = "/Users/laurieshaw/Documents/Football/Data/OPTA/QualID_Descriptions.csv"
     qualids = {}
     with open(qualids_path, 'rU') as csvfile:
         refreader = csv.reader(csvfile, dialect = 'excel')
-        refreader.next() # get rid of header
+        #refreader.next() # get rid of header
+        next(refreader)
         for row in refreader: # first row is header
             qualids[int(row[0])] = row[1]
+    '''
     return typeids,qualids
 
     
@@ -244,9 +252,9 @@ class OPTAevent(object):
             assist_event_id = int( self.qualifiers[self.qual_id_list.index(55)].value )
             related_events = [e for e in events if e.event_id==assist_event_id]
             if len(related_events)==0:
-                print "no related event found"
+                print("no related event found")
             elif len(related_events)>1:
-                print "multiple related events"
+                print("multiple related events")
             else:
                 self.assist = related_events[0]
             self.assist_throughball = 4 in self.assist.qual_id_list
@@ -261,9 +269,9 @@ class OPTAevent(object):
             assist_event_id = int( self.qualifiers[self.qual_id_list.index(216)].value )
             related_events = [e for e in events if e.event_id==assist_event_id]
             if len(related_events)==0:
-                print "no related event found"
+                print("no related event found")
             elif len(related_events)>1:
-                print "multiple related events"
+                print("multiple related events")
             else:
                 self.second_assist = related_events[0]
             self.second_assist_throughball = 4 in self.second_assist.qual_id_list
@@ -312,7 +320,7 @@ class OPTAevent(object):
         self.direct_free_kick = 26 in self.qual_id_list
 
         if not (self.header or self.foot or self.other_body_part):
-            print self
+            print(self)
             assert False
             
     def calc_shot_xG(self,xG_pen = 0.76):
